@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Barcode Generator</title>
+	<style type="text/css">
+		html * {
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+</head>
+<body>
+	<form>
+		<div>
+			<input type='text' name='isbn' id='isbnCode' maxlength='15' required autofocus value='8 711253 001205' />
+			<button type='button' id='generateISBNBarCode'>generate isbn</button>
+		</div>
+		<canvas id='binaryBarCodeCanvas' width="640" height="480"></canvas>
+	</form>
+	<script src='js/barcode.js'></script>
+</body>
+</html>
