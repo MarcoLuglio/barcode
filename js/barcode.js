@@ -2,6 +2,10 @@
 
 
 
+/**
+ * @param {Number} number
+ * @param {Number} byteSize
+ */
 const toBinaryString = (number, byteSize) => {
 
 	let binaryString = '0b';
@@ -17,6 +21,12 @@ const toBinaryString = (number, byteSize) => {
 
 
 
+/**
+ * @param {Array} byteArray Byte array to write bytes into
+ * @param {Number} bytes Bytes to write to the array (bits actually)
+ * @param {Number} length Length of bits to write
+ * @param {Number} offset Index of the byte array where to start writing the bytes
+ */
 const writeBytes = (byteArray, bytes, length, offset) => {
 
 	const byteSize = 8;
@@ -28,10 +38,10 @@ const writeBytes = (byteArray, bytes, length, offset) => {
 	let bitIndex = ((offset + elementSizeInBits) % elementSizeInBits);
 	let loop = false;
 
-	// bits are aligned right aligned, so the offset must be enough to align the left sides
+	// bits are right aligned, so the offset must be enough to align the left sides
 	let bitOffset = elementSizeInBits - length - bitIndex;
 
-	// bitwise operators are limited to 32 bits
+	// bitwise operators are limited to 32 bits in javascript
 
 	let alignedBytes = 0;
 	if (bitOffset > 0) {
@@ -61,7 +71,7 @@ const writeBytes = (byteArray, bytes, length, offset) => {
 
 		byteArray[byteIndex] |= alignedBytes;
 
-		// if there are no more bytes to record
+		// if there are no more bytes to write
 		if ((byteIndex * elementSizeInBits) > (length + offset)) {
 			loop = false;
 			continue;
@@ -76,7 +86,7 @@ const writeBytes = (byteArray, bytes, length, offset) => {
 
 }
 
-// read part
+// read part - in progress
 const readBytes = (byteArray, bytes, length, offset) => {
 
 	const byteSize = 8;
@@ -141,8 +151,9 @@ const readBytes = (byteArray, bytes, length, offset) => {
 
 
 /**
- * 0 = L
- * 1 = G
+ * EAN-13 digit code parity
+ * 0 = L (odd)
+ * 1 = G (even)
  */
 const digitsGroup1Parity = [
 	0b000000, // 0
@@ -160,9 +171,13 @@ const digitsGroup1Parity = [
 
 
 /**
- * 0 = L
- * 1 = G
- * 2 = R
+ * EAN-13 digit codes
+ * 0 = L (odd)
+ * 1 = G (even)
+ * 2 = R (reverse)
+ *
+ * G is R in reverse
+ * R is bitwise ~ of L
  */
 const digitCodes = [
 	// group 1           | group 2
@@ -228,18 +243,18 @@ const IsbnBarCode = class {
 		// |101| <- start marker (indexes 0 to 2)            |010 10| <- middle marker (indexes 45 to 49)          |101| <- end marker (indexes 92 to 94)
 		//  10100000 00000000 00000000 00000000 00000000 00000010 10000000 00000000 00000000 00000000 00000000 00001010;
 
-		const byteSize = 8;
-		const byteBuffer = new ArrayBuffer(96 / byteSize);
+		const byteSize = 8; // byte array byte size. Uint8 byte has 8 bits
+		const byteBuffer = new ArrayBuffer(96 / byteSize); // enough to fit 94 bits
 		const byteArray = new Uint8Array(byteBuffer);
 
-		const digitCodeSize = 7;
+		const digitCodeSize = 7; // digit code has 7 bits
 		let digitCode = 0;
 
 		let streamIndex = 0;
 
 		let groupParityBit;
 		let groupParity;
-		let groupParityBitIndex = 5;
+		let groupParityBitIndex = 5; // group parity has 6 bits: indexes 0 to 5
 
 		// start marker
 		writeBytes(byteArray, 0b101, 3, streamIndex);
@@ -285,6 +300,132 @@ const IsbnBarCode = class {
 
 
 
+/**
+ * Interleaved 2 of 5 digit width
+ * 0 = narrow
+ * 1 = wide
+ */
+const digitWidths = [
+	0b00110, // 0
+	0b10001, // 1
+	0b01001, // 2
+	0b11000, // 3
+	0b00101, // 4
+	0b10100, // 5
+	0b01100, // 6
+	0b00011, // 7
+	0b10010, // 8
+	0b01010  // 9
+];
+
+
+
+const ItfBarCode = class {
+
+	constructor() {
+
+		Object.defineProperties(this, {
+			_digitSequence: {value: []}
+		});
+
+		Object.seal(this);
+
+	}
+
+	push(digitString) {
+		let digit = Number.parseInt(digitString, 10);
+		this._digitSequence.push(digit);
+	}
+
+	getNumbers() {
+		return this._digitSequence.join('');
+	}
+
+	getBytes(ajustarParaBoleto) {
+
+		const byteSize = 8; // byte array byte size. Uint8 byte has 8 bits
+		const byteBuffer = new ArrayBuffer(320 / byteSize); // enough to fit 316 bits
+		const byteArray = new Uint8Array(byteBuffer);
+
+		const digitWidthsSize = 5; // digit widths have 5 bits
+
+		let digitSequence = this._digitSequence;
+
+		let barDigit = 0;
+		let barDigitWidth = 0;
+
+		let spaceDigit = 0;
+		let spaceDigitWidth = 0;
+
+		let digitBitIndex = 4;
+
+		let streamIndex = 0;
+
+		// remove os digitos verificadores
+		if (ajustarParaBoleto) {
+			let grupo1 = this._digitSequence.slice(0, 4); // identificação do banco (0-2) + código da moeda (3)
+			let grupo2 = this._digitSequence.slice(32, 33); // dígito verificador geral
+			let grupo3 = this._digitSequence.slice(33, 47); // fator de vencimento (33-36) + valor nominal (37-46)
+			let grupo4 = this._digitSequence.slice(4, 9); // campo livre (4-8)
+			let grupo5 = this._digitSequence.slice(10, 20); // campo livre (10-19)
+			let grupo6 = this._digitSequence.slice(21, 31); // campo livre (21-30)
+			digitSequence = [];
+			digitSequence = digitSequence.concat(grupo1);
+			digitSequence = digitSequence.concat(grupo2);
+			digitSequence = digitSequence.concat(grupo3);
+			digitSequence = digitSequence.concat(grupo4);
+			digitSequence = digitSequence.concat(grupo5);
+			digitSequence = digitSequence.concat(grupo6);
+		}
+
+		// start marker is (narrow bar, narrow space) 2x
+		writeBytes(byteArray, 0b1010, 4, streamIndex);
+		streamIndex += 4;
+
+		for (let i = 0; i < digitSequence.length; i = i + 2) {
+
+			for (digitBitIndex = 4; digitBitIndex >= 0; digitBitIndex--) {
+
+				barDigit = digitSequence[i];
+				barDigitWidth = digitWidths[barDigit] & (1 << digitBitIndex);
+				// wide
+				if (barDigitWidth) {
+					writeBytes(byteArray, 0b11, 2, streamIndex);
+					streamIndex += 2;
+				// narrow
+				} else {
+					writeBytes(byteArray, 0b1, 1, streamIndex);
+					streamIndex += 1;
+				}
+
+				spaceDigit = digitSequence[i + 1];
+				spaceDigitWidth = digitWidths[spaceDigit] & (1 << digitBitIndex);
+				// wide
+				if (spaceDigitWidth) {
+					writeBytes(byteArray, 0b00, 2, streamIndex);
+					streamIndex += 2;
+				// narrow
+				} else {
+					writeBytes(byteArray, 0b0, 1, streamIndex);
+					streamIndex += 1;
+				}
+
+			}
+
+		}
+
+		// end marker is wide bar, narrow space, narrow bar
+		writeBytes(byteArray, 0b1101, 4, streamIndex);
+		streamIndex += 4;
+
+		return byteArray;
+
+	}
+
+};
+
+
+
 const binaryBarCodeCanvas = class {
 
 	constructor(canvasId) {
@@ -312,15 +453,18 @@ const binaryBarCodeCanvas = class {
 
 		this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
-		for (let byteIndex = 0; byteIndex < 12; byteIndex++) {
+		//for (let byteIndex = 0; byteIndex < 12; byteIndex++) { // isbn
+		for (let byteIndex = 0; byteIndex < 42; byteIndex++) { // itf
 
 			bitMask = 1 << 7;
 
-			for (let bitIndex = 0; bitIndex < 8 && streamIndex < 95; bitIndex++) {
+			//for (let bitIndex = 0; bitIndex < 8 && streamIndex < 94; bitIndex++) { // isbn
+			for (let bitIndex = 0; bitIndex < 8 && streamIndex < 316; bitIndex++) { // itf
 
 				bit = byteArray[byteIndex] & bitMask;
 
-				if (streamIndex < 3
+				// isbn
+				/*if (streamIndex < 3
 					|| (streamIndex > 44 && streamIndex < 50)
 					|| (streamIndex > 91)
 					) {
@@ -331,7 +475,7 @@ const binaryBarCodeCanvas = class {
 
 					marker = false;
 
-				}
+				}*/
 
 				if (bit) {
 					this._context.fillRect(x, y, baseWidth, height + (marker ? 20 : 0));
@@ -355,6 +499,8 @@ const binaryBarCodeCanvas = class {
 
 
 
+// supermercado
+
 const inputISBNCode = document.getElementById('isbnCode');
 const buttonGenerateISBNBarCode = document.getElementById('generateISBNBarCode');
 
@@ -371,6 +517,29 @@ buttonGenerateISBNBarCode.addEventListener('click', (clickEvent) => {
 
 	const barCodeCanvas = new binaryBarCodeCanvas('binaryBarCodeCanvas');
 	barCodeCanvas.paint(barCode.getBytes(), barCode.getNumbers(), 3, 85);
+
+});
+
+
+
+// boleto
+
+const inputITFCode = document.getElementById('itfCode');
+const buttonGenerateITFBarCode = document.getElementById('generateITFBarCode');
+
+buttonGenerateITFBarCode.addEventListener('click', (clickEvent) => {
+
+	let itfCode = inputITFCode.value;
+	itfCode = itfCode.replace(/\D/gi, '');
+
+	const barCode = new ItfBarCode();
+
+	for (let digit of itfCode) {
+		barCode.push(digit);
+	}
+
+	const barCodeCanvas = new binaryBarCodeCanvas('binaryBarCodeCanvas');
+	barCodeCanvas.paint(barCode.getBytes(true), barCode.getNumbers(), 3, 85);
 
 });
 

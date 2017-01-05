@@ -8,6 +8,13 @@
 			margin: 0;
 			padding: 0;
 		}
+		input[type=text] {
+			width: 400px;
+		}
+		button {
+			padding-left: 5px;
+			padding-right: 5px;
+		}
 	</style>
 </head>
 <body>
@@ -16,7 +23,14 @@
 			<input type='text' name='isbn' id='isbnCode' maxlength='15' required autofocus value='8 711253 001205' />
 			<button type='button' id='generateISBNBarCode'>generate isbn</button>
 		</div>
-		<canvas id='binaryBarCodeCanvas' width="640" height="480"></canvas>
+
+		<div>
+			<input type='text' name='itf' id='itfCode' maxlength='54' required autofocus value='03399.17924 53900.000844 30776.501014 1 70460000012151' />
+			<button type='button' id='generateITFBarCode'>generate itf</button>
+			<p>Não inclua o dígito verificador</p>
+		</div>
+
+		<canvas id='binaryBarCodeCanvas' width="1280" height="480"></canvas>
 	</form>
 	<script src='js/barcode.js'></script>
 </body>
