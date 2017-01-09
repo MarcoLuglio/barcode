@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 	<meta charset="UTF-8">
 	<title>Barcode Generator</title>
 	<style type="text/css">
 		html * {
 			margin: 0;
 			padding: 0;
+		}
+		body {
+			padding: 30px;
+		}
+		body,
+		input,
+		button,
+		textarea {
+			font-family: Arial, Helvetica, sans-serif;
+			font-size: 12px;
 		}
 		input[type=text] {
 			width: 400px;
@@ -15,23 +26,34 @@
 			padding-left: 5px;
 			padding-right: 5px;
 		}
+		div {
+			margin-bottom: 20px;
+		}
 	</style>
+
 </head>
 <body>
+
 	<form>
+
 		<div>
-			<input type='text' name='isbn' id='isbnCode' maxlength='15' required autofocus value='8 711253 001205' />
+			Supermercado<br />
+			<input type='text' name='isbn' id='isbnCode' maxlength='15' required autofocus placeholder='8 711253 001202' value='8 711253 001202' /><br />
 			<button type='button' id='generateISBNBarCode'>generate isbn</button>
 		</div>
 
 		<div>
-			<input type='text' name='itf' id='itfCode' maxlength='54' required autofocus value='03399.17924 53900.000844 30776.501014 1 70460000012151' />
+			Boletos<br />
+			<input type='text' name='itf' id='itfCode' maxlength='54' required autofocus value='03399.17924 53900.000844 30776.501014 1 70460000012151' /><br />
+			<input type='checkbox' name='ajustarBoletoItfCode' id='ajustarBoletoItfCode' checked /> <label for='ajustarBoletoItfCode'>Ajustar números para boleto</label><br />
 			<button type='button' id='generateITFBarCode'>generate itf</button>
-			<p>Não inclua o dígito verificador</p>
 		</div>
 
 		<canvas id='binaryBarCodeCanvas' width="1280" height="480"></canvas>
+
 	</form>
+
 	<script src='js/barcode.js'></script>
+
 </body>
 </html>
